@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  name         String
+  createdAt    DateTime  @default(now()) @map("created_at")
+  bookings     Booking[]
+
+  @@map("users")
+}
+
+model DiagnosticCentre {
+  id        String           @id @default(uuid())
+  name      String
+  location  String
+  createdAt DateTime         @default(now()) @map("created_at")
+  tests     DiagnosticTest[]
+  bookings  Booking[]
+
+  @@map("diagnostic_centres")
+}
+
+model DiagnosticTest {
+  id       String           @id @default(uuid())
+  centreId String           @map("centre_id")
+  name     String
+  price    Decimal          @db.Decimal(10, 2)
+  centre   DiagnosticCentre @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@index([centreId])
+  @@map("diagnostic_tests")
+}
+
+model Booking {
+  id            String        @id @default(uuid())
+  userId        String        @map("user_id")
+  testId        String        @map("test_id")
+  centreId      String        @map("centre_id")
+  appointmentAt DateTime      @map("appointment_at")
+  amount        Decimal       @db.Decimal(10, 2)
+  status        BookingStatus @default(PENDING)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  test          DiagnosticTest @relation(fields: [testId], references: [id])
+  centre        DiagnosticCentre @relation(fields: [centreId], references: [id])
+  payments      Payment[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("bookings")
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  bookingId       String        @map("booking_id")
+  amount          Decimal       @db.Decimal(10, 2)
+  status          PaymentStatus @default(PENDING)
+  providerEventId String?       @unique @map("provider_event_id")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  booking         Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("payments")
+}
+
+/// Tracks processed webhook events for idempotency
+model WebhookEvent {
+  id          String   @id @default(uuid())
+  eventId     String   @unique @map("event_id")
+  paymentId   String?  @map("payment_id")
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("webhook_events")
+}

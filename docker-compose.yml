@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: eve
+      POSTGRES_PASSWORD: eve_secret
+      POSTGRES_DB: eve_healthcare
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eve -d eve_healthcare"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "56379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://eve:eve_secret@postgres:5432/eve_healthcare?schema=public
+      JWT_SECRET: docker-dev-jwt-secret-min-32-chars-long
+      JWT_EXPIRES_IN: 7d
+      PAYMENT_WEBHOOK_SECRET: webhook-shared-secret
+      PAYMENT_SUCCESS_RATE: "0.8"
+      REDIS_URL: redis://redis:6379
+      CENTRE_CACHE_TTL_SECONDS: 60
+      WEBHOOK_QUEUE_NAME: payment-webhooks
+      WEBHOOK_RETRY_ATTEMPTS: 5
+      WEBHOOK_RETRY_DELAY_MS: 1000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: sh -c "npx prisma db push && node prisma/seed.js && node src/server.js"
+
+volumes:
+  postgres_data:
