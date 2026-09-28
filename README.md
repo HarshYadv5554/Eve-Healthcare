@@ -240,9 +240,9 @@ webhook_events
 - Role-based access (admin vs patient)  
 - Outbox pattern for transactional event publication  
 - Payment idempotency keys on `POST /payments/`  
-- OpenAPI generated from Zod schemas  
 - CI pipeline with GitHub Actions  
 - Migration files instead of `db push` for production  
+- System can be connected with IOT devices to get reports including ECG data and other data from devices on dashboard for both patients and doctors as done in this repository(https://github.com/HarshYadv5554/HealthMonitor)
 
 ## Project layout
 
